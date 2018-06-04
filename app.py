@@ -1,45 +1,13 @@
 import argparse
-import sqlite3
 from sklearn.manifold import TSNE
-from sklearn import manifold, datasets
-import numpy as np
+from sklearn import manifold
 import matplotlib.pyplot as plt
-from helpers import Tsne
-import csv
+from tsne import Tsne
+from data_generator import read_from_file, read_from_db
 import tkinter as tk
 
 
-DB_NUM_ROWS = 10000
-
-
-def create_db_connection(db_file):
-    try:
-        conn = sqlite3.connect(db_file)
-        return conn
-    except sqlite3.Error as e:
-        print(e)
-    return None
-
-
-def get_db_dataset(conn, limit):
-    print("Getting Data")
-    cur = conn.cursor()
-    data = []
-
-    devices = ["\"SwannOne SoundView Outdoor Camera\"",
-               "\"DLink Camera\"",
-               "\"Google-Home\"",
-               "\"WeMo Switch\"",
-               "\"SwannOne Smart Hub\"",
-               "\"Philips Hue Bulbs\"",
-               "\"rpi-bonesi\""
-               ]
-    for curr_name in devices:
-        print("Extracting row from database:", curr_name)
-        data += cur.execute(f'''SELECT DISTINCT * FROM flow_features WHERE name = {curr_name} AND abs(CAST(random() AS REAL)) 
-                                / 9223372036854775808 < 0.5 LIMIT {limit}''').fetchall()
-    print("Loaded all the data")
-    return data
+DEFAULT_DB_SRC = './datasets/networkdump-sorted.sqlite'
 
 
 def apply_tsne(config):
@@ -48,30 +16,6 @@ def apply_tsne(config):
     vis_y = Y[:, 1]
     plt.scatter(vis_x, vis_y, c=config.target, s=10)
     plt.show()
-
-
-def read_db_data(db_rows):
-    data = []
-    target = []
-    for row in db_rows:
-        vals = row[1:]
-        tar = row[0]
-        data.append(list(map(np.float64, vals)))
-        target.append(tar)
-    return np.copy(data), np.copy(target)
-
-
-def read_csv_data(filename):
-    data = []
-    target = []
-    with open(filename, 'r') as csvfile:
-        reader = csv.reader(csvfile, delimiter=',')
-        for row in reader:
-            vals = row[:-1]
-            tar = row[-1]
-            data.append(list(map(np.float64, vals)))
-            target.append(tar)
-    return np.copy(data), np.copy(target)
 
 
 def main(*args, **kwargs):
@@ -87,7 +31,7 @@ def main(*args, **kwargs):
         root.quit()
         root.destroy()
         tsne = Tsne(manifold.TSNE(learning_rate=1000, init='random', perplexity=var.get()))
-        tsne.plot(args[0], args[1])
+        tsne.plot(args[0], args[1], args[2])
 
     root.geometry('200x100')
     var = tk.DoubleVar()
@@ -105,16 +49,12 @@ def main(*args, **kwargs):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='app')
     parser.add_argument('--input')
+    parser.add_argument('--colors')
     input_file = parser.parse_args().input
+    color_file = parser.parse_args().colors
     if input_file is None:
-        connection = create_db_connection('datasets/networkdump-sorted.sqlite')
-        if connection is None:
-            exit(1)
-        db_output = get_db_dataset(connection, DB_NUM_ROWS)
-        data, target = read_db_data(db_output)
-        main(data, target)
+        input_data, input_target = read_from_db(DEFAULT_DB_SRC)
+        main(input_data, input_target, color_file)
     else:
-        data, target = read_csv_data(input_file)
-        # print("got target:", all(target==datasets.load_digits().target))
-        # print("got data:", all(data.ravel()==datasets.load_digits().data.ravel()))
-        main(data, target)
+        input_data, input_target = read_from_file(input_file)
+        main(input_data, input_target, color_file)
