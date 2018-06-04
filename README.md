@@ -8,7 +8,7 @@ t-SNE is based on the paper
 
 ## Animation
 This library allows you to create animations as t-SNE is going through its iterations.
-![a relative link](./media/tsne.gif)
+![a relative link](./media/tsne-mnist-start.gif)
 
 ## Zooming-in
 t-SNE is a stochastic method which means that if we are performing dimensionality reduction on a large number of points into a 2-D region
